@@ -86,8 +86,8 @@ memory_overlay = tk.Frame(root, bd=1, relief="solid", bg="#f0f0f0")
 
 
 def show_memory_overlay():
-    x = mdown_btn.winfo_rootx() - root.winfo_rootx()
-    y = mdown_btn.winfo_rooty() - root.winfo_rooty() + mdown_btn.winfo_height()
+    x = mview_btn.winfo_rootx() - root.winfo_rootx()
+    y = mview_btn.winfo_rooty() - root.winfo_rooty() + mview_btn.winfo_height()
 
     memory_overlay.place(x=x-252, y=y, width=300, height=250)
     memory_overlay.lift()
@@ -152,7 +152,7 @@ ms_btn = tk.Button(
     command=lambda: (
         memory_data.append(result_var.get()), update_memory_buttons())
 )
-mdown_btn = tk.Button(mem_frame, text="M↓", command=toggle_memory_panel)
+mview_btn = tk.Button(mem_frame, text="Mv", command=toggle_memory_panel)
 
 # Pack all buttons in correct order
 mc_btn.pack(side="left", expand=True, fill="x")
@@ -160,7 +160,7 @@ mr_btn.pack(side="left", expand=True, fill="x")
 mplus_btn.pack(side="left", expand=True, fill="x")
 mminus_btn.pack(side="left", expand=True, fill="x")
 ms_btn.pack(side="left", expand=True, fill="x")
-mdown_btn.pack(side="left", expand=True, fill="x")
+mview_btn.pack(side="left", expand=True, fill="x")
 
 
 # Update button states based on memory
@@ -168,11 +168,11 @@ def update_memory_buttons():
     if memory_data:
         mc_btn.config(state="normal")
         mr_btn.config(state="normal")
-        mdown_btn.config(state="normal")
+        mview_btn.config(state="normal")
     else:
         mc_btn.config(state="disabled")
         mr_btn.config(state="disabled")
-        mdown_btn.config(state="disabled")
+        mview_btn.config(state="disabled")
 
 
 # ============================================================

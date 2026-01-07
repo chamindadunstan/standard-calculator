@@ -5,6 +5,40 @@ root.title("Standard Calculator")
 root.geometry("320x420")
 root.minsize(320, 420)
 
+
+# === Tooltip Helper Class ===
+class ToolTip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        widget.bind("<Enter>", self.show_tip)
+        widget.bind("<Leave>", self.hide_tip)
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(
+            tw, text=self.text, justify="left",
+            background="#ffffe0", relief="solid", borderwidth=1,
+            font=("Segoe UI", 9)
+        )
+        label.pack(ipadx=4, ipady=2)
+
+    def hide_tip(self, event=None):
+        tw = self.tip_window
+        self.tip_window = None
+        if tw:
+            tw.destroy()
+
+
 # === Variables ===
 expression_var = tk.StringVar()
 result_var = tk.StringVar()
@@ -161,6 +195,16 @@ mplus_btn.pack(side="left", expand=True, fill="x")
 mminus_btn.pack(side="left", expand=True, fill="x")
 ms_btn.pack(side="left", expand=True, fill="x")
 mview_btn.pack(side="left", expand=True, fill="x")
+
+# ============================================================
+#   Tool Tips for Memory Buttons
+# ============================================================
+ToolTip(mc_btn, "Memory Clear")
+ToolTip(mr_btn, "Memory Recall")
+ToolTip(mplus_btn, "Add to Memory")
+ToolTip(mminus_btn, "Subtract from Memory")
+ToolTip(ms_btn, "Store in Memory")
+ToolTip(mview_btn, "View Memory")
 
 
 # Update button states based on memory

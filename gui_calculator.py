@@ -132,45 +132,48 @@ def clear_memory():
 mem_frame = tk.Frame(root)
 mem_frame.pack(fill="x", padx=10)
 
-
-def update_memory_buttons():
-    mc_btn.pack_forget()
-    mr_btn.pack_forget()
-    mdown_btn.pack_forget()
-
-    if memory_data:
-        mc_btn.pack(side="left", expand=True, fill="x")
-        mr_btn.pack(side="left", expand=True, fill="x")
-        mdown_btn.pack(side="left", expand=True, fill="x")
-
-
 mc_btn = tk.Button(mem_frame, text="MC", command=clear_memory)
 mr_btn = tk.Button(
     mem_frame, text="MR",
-    command=lambda: result_var.set(memory_data[-1] if memory_data else ""))
-
-mplus_btn = (tk.Button(
+    command=lambda: result_var.set(memory_data[-1] if memory_data else "")
+)
+mplus_btn = tk.Button(
     mem_frame, text="M+",
     command=lambda: (
-        memory_data.append(result_var.get()),
-        update_memory_buttons())))
-
+        memory_data.append(result_var.get()), update_memory_buttons())
+)
 mminus_btn = tk.Button(
     mem_frame, text="M−",
     command=lambda: (
-        memory_data.append(f"-{result_var.get()}"), update_memory_buttons()))
-
+        memory_data.append(f"-{result_var.get()}"), update_memory_buttons())
+)
 ms_btn = tk.Button(
     mem_frame, text="MS",
     command=lambda: (
-        memory_data.append(result_var.get()), update_memory_buttons()))
-
+        memory_data.append(result_var.get()), update_memory_buttons())
+)
 mdown_btn = tk.Button(mem_frame, text="M↓", command=toggle_memory_panel)
 
-update_memory_buttons()
+# Pack all buttons in correct order
+mc_btn.pack(side="left", expand=True, fill="x")
+mr_btn.pack(side="left", expand=True, fill="x")
 mplus_btn.pack(side="left", expand=True, fill="x")
 mminus_btn.pack(side="left", expand=True, fill="x")
 ms_btn.pack(side="left", expand=True, fill="x")
+mdown_btn.pack(side="left", expand=True, fill="x")
+
+
+# Update button states based on memory
+def update_memory_buttons():
+    if memory_data:
+        mc_btn.config(state="normal")
+        mr_btn.config(state="normal")
+        mdown_btn.config(state="normal")
+    else:
+        mc_btn.config(state="disabled")
+        mr_btn.config(state="disabled")
+        mdown_btn.config(state="disabled")
+
 
 # ============================================================
 #   BUTTON GRID

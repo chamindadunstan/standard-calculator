@@ -34,7 +34,7 @@ def show_history_overlay():
     y = (history_btn.winfo_rooty() - root.winfo_rooty() +
          history_btn.winfo_height())
 
-    history_overlay.place(x=x-150, y=y, width=200, height=250)
+    history_overlay.place(x=x-264, y=y+25, width=300, height=250)
     history_overlay.lift()
 
     for w in history_overlay.winfo_children():
@@ -47,7 +47,7 @@ def show_history_overlay():
 
     tk.Button(
         history_overlay, text="🗑️", command=clear_history
-        ).pack(anchor="e", padx=5, pady=5)
+        ).place(x=260, y=220)
 
 
 def hide_history_overlay():
@@ -89,7 +89,7 @@ def show_memory_overlay():
     x = mdown_btn.winfo_rootx() - root.winfo_rootx()
     y = mdown_btn.winfo_rooty() - root.winfo_rooty() + mdown_btn.winfo_height()
 
-    memory_overlay.place(x=x-150, y=y, width=200, height=250)
+    memory_overlay.place(x=x-252, y=y, width=300, height=250)
     memory_overlay.lift()
 
     for w in memory_overlay.winfo_children():
@@ -102,7 +102,7 @@ def show_memory_overlay():
 
     tk.Button(
         memory_overlay, text="🗑️", command=clear_memory
-        ).pack(anchor="e", padx=5, pady=5)
+        ).place(x=260, y=220)
 
 
 def hide_memory_overlay():

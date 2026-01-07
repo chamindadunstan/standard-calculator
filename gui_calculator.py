@@ -1,5 +1,12 @@
 import tkinter as tk
+from operations import (
+    calculate_expression, memory_store, memory_add, memory_subtract,
+    memory_recall, memory_clear, memory_list, reciprocal, square, sqrt,
+    toggle_sign, clear_entry, clear_all, backspace, percentage,
+    append_digit, append_decimal
+)
 
+# === Main Window Setup ===
 root = tk.Tk()
 root.title("Standard Calculator")
 root.geometry("320x420")
@@ -129,7 +136,7 @@ def show_memory_overlay():
     for w in memory_overlay.winfo_children():
         w.destroy()
 
-    for item in memory_data:
+    for item in memory_list():
         tk.Label(
             memory_overlay, text=item, anchor="w", bg="#f0f0f0"
             ).pack(fill="x", padx=5, pady=2)
@@ -153,7 +160,7 @@ def toggle_memory_panel():
 
 
 def clear_memory():
-    memory_data.clear()
+    memory_clear()
     memory_visible.set(False)
     hide_memory_overlay()
     update_memory_buttons()
@@ -166,25 +173,25 @@ def clear_memory():
 mem_frame = tk.Frame(root)
 mem_frame.pack(fill="x", padx=10)
 
-mc_btn = tk.Button(mem_frame, text="MC", command=clear_memory)
+mc_btn = tk.Button(
+    mem_frame, text="MC", command=lambda: (
+        memory_clear(), update_memory_buttons()))
 mr_btn = tk.Button(
     mem_frame, text="MR",
-    command=lambda: result_var.set(memory_data[-1] if memory_data else "")
+    command=lambda: result_var.set(memory_recall())
 )
 mplus_btn = tk.Button(
     mem_frame, text="M+",
-    command=lambda: (
-        memory_data.append(result_var.get()), update_memory_buttons())
+    command=lambda: (memory_add(result_var.get()), update_memory_buttons())
 )
 mminus_btn = tk.Button(
     mem_frame, text="M−",
     command=lambda: (
-        memory_data.append(f"-{result_var.get()}"), update_memory_buttons())
+        memory_subtract(result_var.get()), update_memory_buttons())
 )
 ms_btn = tk.Button(
     mem_frame, text="MS",
-    command=lambda: (
-        memory_data.append(result_var.get()), update_memory_buttons())
+    command=lambda: (memory_store(result_var.get()), update_memory_buttons())
 )
 mview_btn = tk.Button(mem_frame, text="Mv", command=toggle_memory_panel)
 
@@ -219,6 +226,21 @@ def update_memory_buttons():
         mview_btn.config(state="disabled")
 
 
+def calculate():
+    expr = expression_var.get()
+    result = calculate_expression(expr)
+
+    result_var.set(str(result))
+
+    if result != "Error":
+        history_data.append(f"{expr} = {result}")
+
+    expression_var.set("")
+
+    if history_visible.get():
+        show_history_overlay()
+
+
 # ============================================================
 #   BUTTON GRID
 # ============================================================
@@ -227,10 +249,104 @@ btn_frame = tk.Frame(root)
 btn_frame.pack(expand=True, fill="both", padx=10, pady=10)
 
 
-def make_button(text, row, col, cmd=None, colspan=1):
-    if cmd is None:
-        def cmd(t=text):
-            expression_var.set(expression_var.get() + t)
+def make_button(text, row, col, colspan=1):
+    def cmd():
+        current = expression_var.get()
+        result = result_var.get()
+
+        # === NUMBER BUTTONS ===
+        if text.isdigit():
+            expression_var.set(append_digit(current, text))
+            return
+
+        # === DECIMAL POINT ===
+        if text == ".":
+            expression_var.set(append_decimal(current))
+            return
+
+        # === BASIC OPERATORS ===
+        if text in ["+", "−", "×", "÷"]:
+            expression_var.set(current + text)
+            return
+
+        # === PERCENTAGE ===
+        if text == "%":
+            result_var.set(str(percentage(result or current)))
+            return
+
+        # === CLEAR ENTRY ===
+        if text == "CE":
+            expression_var.set(clear_entry(current))
+            return
+
+        # === CLEAR ALL ===
+        if text == "C":
+            expr, res = clear_all()
+            expression_var.set(expr)
+            result_var.set(res)
+            return
+
+        # === BACKSPACE ===
+        if text == "⌫":
+            expression_var.set(backspace(current))
+            return
+
+        # === RECIPROCAL ===
+        if text == "1/x":
+            result_var.set(str(reciprocal(result or current)))
+            return
+
+        # === SQUARE ===
+        if text == "x²":
+            result_var.set(str(square(result or current)))
+            return
+
+        # === SQUARE ROOT ===
+        if text == "²√x":
+            result_var.set(str(sqrt(result or current)))
+            return
+
+        # === SIGN TOGGLE ===
+        if text == "+/-":
+            # If result is showing, toggle that
+            if result:
+                new_val = str(toggle_sign(result))
+                result_var.set(new_val)
+                expression_var.set(new_val)
+                return
+
+            # If typing inside expression, toggle last number
+            if current:
+                # Find last number in expression
+                import re
+                parts = re.split(r'([+\-×÷])', current)
+
+                if parts:
+                    if parts[-1] == "":
+                        return  # nothing to toggle
+
+                    # Toggle last numeric part
+                    parts[-1] = str(toggle_sign(parts[-1]))
+                    new_expr = "".join(parts)
+
+                    expression_var.set(new_expr)
+                    result_var.set(parts[-1])
+                return
+
+        # === EQUALS ===
+        if text == "=":
+            expr = expression_var.get()
+            result = calculate_expression(expr)
+            result_var.set(str(result))
+
+            if result != "Error":
+                history_data.append(f"{expr} = {result}")
+
+            expression_var.set("")
+            if history_visible.get():
+                show_history_overlay()
+            return
+
     btn = tk.Button(btn_frame, text=text, font=("Segoe UI", 12), command=cmd)
     btn.grid(row=row, column=col, columnspan=colspan,
              sticky="nsew", padx=2, pady=2)
@@ -266,24 +382,11 @@ make_button("2", 4, 1)
 make_button("3", 4, 2)
 make_button("+", 4, 3)
 
-
-def calculate():
-    try:
-        expr = expression_var.get()
-        expr = expr.replace("×", "*").replace("÷", "/").replace("−", "-")
-        result = eval(expr)
-        result_var.set(str(result))
-        history_data.append(f"{expression_var.get()} = {result}")
-        expression_var.set("")
-        if history_visible.get():
-            show_history_overlay()
-    except Exception:
-        result_var.set("Error")
-
-
-make_button("±", 5, 0)
+make_button("+/-", 5, 0)
 make_button("0", 5, 1)
 make_button(".", 5, 2)
-make_button("=", 5, 3, cmd=calculate)
+make_button("=", 5, 3)
 
+
+# === Start the GUI Event Loop ===
 root.mainloop()

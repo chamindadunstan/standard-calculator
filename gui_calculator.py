@@ -22,12 +22,26 @@ result_label = tk.Label(root, textvariable=result_var,
                         font=("Segoe UI", 24), anchor="e", bg="white")
 result_label.pack(fill="x", padx=10, pady=(0, 10))
 
-# === Panels ===
+
+def toggle_history_panel():
+    history_visible.set(not history_visible.get())
+    update_panels()
+
+
+# === History Button Above Display ===
+history_top_frame = tk.Frame(root)
+history_top_frame.pack(fill="x", padx=10, pady=(5, 0))
+
+history_btn = tk.Button(history_top_frame, text="🕒", font=("Segoe UI", 12),
+                        command=toggle_history_panel)
+history_btn.pack(side="right")
+
+# === Panel Frame ===
 panel_frame = tk.Frame(root)
 panel_frame.pack(fill="x", padx=10)
 
-memory_panel = tk.Frame(panel_frame, bd=1, relief="solid", bg="#f8f8f8")
-history_panel = tk.Frame(panel_frame, bd=1, relief="solid", bg="#f8f8f8")
+memory_panel = tk.Frame(panel_frame, bd=1, relief="solid", bg="#f0f0f0")
+history_panel = tk.Frame(panel_frame, bd=1, relief="solid", bg="#f0f0f0")
 
 
 def update_panels():
@@ -42,15 +56,16 @@ def update_panels():
         tk.Button(
             memory_panel, text="🗑️", command=clear_memory
             ).pack(anchor="e", padx=5, pady=5)
-        memory_panel.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        memory_panel.pack(side="top", fill="x", pady=(0, 5))
 
     if history_visible.get():
         for val in history_data:
             tk.Label(
                 history_panel, text=val, anchor="e").pack(fill="x", padx=5)
-        tk.Button(history_panel, text="🗑️", command=clear_history
-                  ).pack(anchor="e", padx=5, pady=5)
-        history_panel.pack(side="right", fill="both", expand=True)
+        tk.Button(
+            history_panel, text="🗑️", command=clear_history
+            ).pack(anchor="e", padx=5, pady=5)
+        history_panel.pack(side="top", fill="x", pady=(0, 5))
 
 
 def clear_memory():
@@ -66,9 +81,9 @@ def clear_history():
     update_panels()
 
 
-# === Top Buttons ===
-top_frame = tk.Frame(root)
-top_frame.pack(fill="x", padx=10)
+# === Memory Button Row ===
+mem_frame = tk.Frame(root)
+mem_frame.pack(fill="x", padx=10)
 
 
 def toggle_memory_panel():
@@ -76,41 +91,33 @@ def toggle_memory_panel():
     update_panels()
 
 
-def toggle_history_panel():
-    history_visible.set(not history_visible.get())
-    update_panels()
-
-
 def update_memory_buttons():
     mc_btn.pack_forget()
     mr_btn.pack_forget()
-    m_btn.pack_forget()
+    mdown_btn.pack_forget()
     if memory_data:
         mc_btn.pack(side="left", expand=True, fill="x")
         mr_btn.pack(side="left", expand=True, fill="x")
-        m_btn.pack(side="left", expand=True, fill="x")
+        mdown_btn.pack(side="left", expand=True, fill="x")
 
 
-mc_btn = tk.Button(
-    top_frame, text="MC", command=clear_memory)
+mc_btn = tk.Button(mem_frame, text="MC", command=clear_memory)
 mr_btn = tk.Button(
-    top_frame, text="MR",
-    command=lambda: result_var.set(memory_data[-1] if memory_data else ""))
+    mem_frame, text="MR", command=lambda: result_var.set(
+        memory_data[-1] if memory_data else ""))
 mplus_btn = tk.Button(
-    top_frame, text="M+", command=lambda: memory_data.append(result_var.get()))
+    mem_frame, text="M+", command=lambda: memory_data.append(result_var.get()))
 mminus_btn = tk.Button(
-    top_frame, text="M−",
-    command=lambda: memory_data.append(f"-{result_var.get()}"))
+    mem_frame, text="M−", command=lambda: memory_data.append(
+        f"-{result_var.get()}"))
 ms_btn = tk.Button(
-    top_frame, text="MS", command=lambda: memory_data.append(result_var.get()))
-m_btn = tk.Button(top_frame, text="M", command=toggle_memory_panel)
-clock_btn = tk.Button(top_frame, text="🕒", command=toggle_history_panel)
+    mem_frame, text="MS", command=lambda: memory_data.append(result_var.get()))
+mdown_btn = tk.Button(mem_frame, text="M↓", command=toggle_memory_panel)
 
 update_memory_buttons()
 mplus_btn.pack(side="left", expand=True, fill="x")
 mminus_btn.pack(side="left", expand=True, fill="x")
 ms_btn.pack(side="left", expand=True, fill="x")
-clock_btn.pack(side="right", padx=(5, 0))
 
 # === Button Grid ===
 btn_frame = tk.Frame(root)

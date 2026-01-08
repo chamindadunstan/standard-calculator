@@ -71,7 +71,7 @@ def get_memory_value():
     return val
 
 
-# === Display ===
+# EXPRESSION DISPLAY
 expression_label = tk.Label(
     root,
     textvariable=expression_var,
@@ -81,14 +81,79 @@ expression_label = tk.Label(
 )
 expression_label.pack(fill="x", padx=10, pady=(10, 0))
 
-result_label = tk.Label(
+# RESULT DISPLAY (Entry widget for selectable text)
+result_entry = tk.Entry(
     root,
     textvariable=result_var,
     font=("Segoe UI", 28),
-    anchor="e",
-    bg="white"
+    justify="right",
+    bd=0,
+    relief="flat",
+    readonlybackground="white",
+    state="readonly"
 )
-result_label.pack(fill="x", padx=10, pady=(0, 10))
+result_entry.pack(fill="x", padx=10, pady=(0, 10))
+
+# SET CURSOR STYLE
+result_entry.configure(cursor="arrow")  # normal pointer
+
+# CLICK TO COPY
+result_entry.bind("<Button-1>", lambda e: copy_to_clipboard(result_var.get()))
+
+
+# HOVER EFFECT
+def on_result_enter(e):
+    result_entry.config(readonlybackground="#e0e0e0")
+
+
+def on_result_leave(e):
+    result_entry.config(readonlybackground="white")
+
+
+result_entry.bind("<Enter>", on_result_enter)
+result_entry.bind("<Leave>", on_result_leave)
+
+
+# ============================================================
+#   HELPER WIDGETS (Hover + Click-to-Copy)
+# ============================================================
+
+def make_hover_label(parent, text, on_click=None):
+    lbl = tk.Label(
+        parent,
+        text=text,
+        anchor="e",
+        justify="right",
+        bg="#f0f0f0",
+        padx=5,
+        pady=2
+    )
+
+    # Hover highlight
+    def on_enter(e):
+        lbl.config(bg="#e0e0e0")
+
+    def on_leave(e):
+        lbl.config(bg="#f0f0f0")
+
+    lbl.bind("<Enter>", on_enter)
+    lbl.bind("<Leave>", on_leave)
+
+    # Click handler (copy to clipboard)
+    if on_click:
+        lbl.bind("<Button-1>", lambda e: on_click(text))
+
+    return lbl
+
+
+# ============================================================
+#   CLIPBOARD HELPER
+# ============================================================
+
+def copy_to_clipboard(value):
+    root.clipboard_clear()
+    root.clipboard_append(value)
+
 
 # ============================================================
 #   FLOATING HISTORY PANEL
@@ -132,13 +197,8 @@ def show_history_overlay():
         ).pack(expand=True, fill="both")
     else:
         for item in history_data:
-            tk.Label(
-                frame,
-                text=item,
-                anchor="e",
-                justify="right",
-                bg="#f0f0f0"
-            ).pack(fill="x", padx=5, pady=2)
+            lbl = make_hover_label(frame, item, on_click=copy_to_clipboard)
+            lbl.pack(fill="x")
 
         delete_btn = tk.Button(frame, text="🗑️", command=clear_history)
         delete_btn.place(x=258, y=214)
@@ -218,13 +278,8 @@ def show_memory_overlay():
 
     else:
         for item in mem:
-            tk.Label(
-                frame,
-                text=item,
-                anchor="e",
-                justify="right",
-                bg="#f0f0f0"
-                ).pack(fill="x", padx=5, pady=2)
+            lbl = make_hover_label(frame, item, on_click=copy_to_clipboard)
+            lbl.pack(fill="x")
 
         delete_btn = tk.Button(frame, text="🗑️", command=clear_memory)
         delete_btn.place(x=258, y=214)

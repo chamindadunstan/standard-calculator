@@ -256,6 +256,9 @@ def handle_memory_action(action, value):
     show_memory_overlay()
 
 
+print("Memory contents:", mem)
+
+
 def show_memory_overlay():
     global memory_popup
     try:

@@ -29,29 +29,59 @@ def _safe_number(value):
 
 
 # ============================
+#   NUMBER FORMATTER
+# ============================
+
+def format_number(value):
+    """Return int-like numbers without .0, keep decimals otherwise."""
+    try:
+        num = float(value)
+        if num.is_integer():
+            return str(int(num))
+        return str(num)
+    except Exception:
+        return value
+
+
+def format_result(value):
+    """Format final results: remove .0, limit long floats."""
+    try:
+        num = float(value)
+
+        # If integer → return without decimals
+        if num.is_integer():
+            return str(int(num))
+
+        # Limit to 10 decimal places, remove trailing zeros
+        formatted = f"{num:.10f}".rstrip("0").rstrip(".")
+
+        return formatted
+    except Exception:
+        return value
+
+
+# ============================
 #   MEMORY FUNCTIONS
 # ============================
 def memory_store(value):
     num = _safe_number(value)
-    memory.append(str(num))
+    memory.insert(0, format_number(num))
 
 
 def memory_add(value):
     num = _safe_number(value)
-
     if memory:
-        memory[-1] = str(_safe_number(memory[-1]) + num)
+        memory[0] = format_number(_safe_number(memory[0]) + num)
     else:
-        memory.append(str(num))
+        memory.insert(0, format_number(num))
 
 
 def memory_subtract(value):
     num = _safe_number(value)
-
     if memory:
-        memory[-1] = str(_safe_number(memory[-1]) - num)
+        memory[0] = format_number(_safe_number(memory[0]) - num)
     else:
-        memory.append(str(-num))
+        memory.insert(0, format_number(-num))
 
 
 def memory_recall():
@@ -71,21 +101,21 @@ def memory_list():
 # ============================
 def reciprocal(x):
     try:
-        return 1 / float(x)
+        return format_number(1 / float(x))
     except Exception:
         return "Error"
 
 
 def square(x):
     try:
-        return float(x) ** 2
+        return format_number(float(x) ** 2)
     except Exception:
         return "Error"
 
 
 def sqrt(x):
     try:
-        return math.sqrt(float(x))
+        return format_number(math.sqrt(float(x)))
     except Exception:
         return "Error"
 
@@ -95,7 +125,7 @@ def sqrt(x):
 # ============================
 def toggle_sign(x):
     try:
-        return str(-float(x))
+        return format_number(-float(x))
     except Exception:
         return x
 
@@ -134,7 +164,6 @@ def append_digit(expr, digit):
 
 def append_decimal(expr):
     # Prevent multiple decimals in the current number
-
     if "." in expr.split()[-1]:
         return expr
     return expr + "."

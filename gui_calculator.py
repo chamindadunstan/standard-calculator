@@ -245,6 +245,17 @@ memory_inner = tk.Frame(memory_overlay, bg="#f0f0f0")
 memory_inner.pack(expand=True, fill="both")
 
 
+def handle_memory_action(action, value):
+    if action == "MC":
+        memory_clear()
+    elif action == "M+":
+        memory_add(value)
+    elif action == "M-":
+        memory_subtract(value)
+    # Refresh panel to show updated memory
+    show_memory_overlay()
+
+
 def show_memory_overlay():
     global memory_popup
     try:
@@ -278,8 +289,70 @@ def show_memory_overlay():
 
     else:
         for item in mem:
-            lbl = make_hover_label(frame, item, on_click=copy_to_clipboard)
-            lbl.pack(fill="x")
+
+            # Outer container
+            row = tk.Frame(frame, bg="white")
+            row.pack(fill="x", pady=2)
+
+            # TOP ROW: Memory value (Entry)
+            value_entry = tk.Entry(
+                row,
+                font=("Segoe UI", 16),
+                justify="right",
+                bd=0,
+                relief="flat",
+                readonlybackground="white",
+                state="readonly"
+            )
+            value_entry.insert(0, item)
+            value_entry.configure(cursor="arrow")
+            value_entry.pack(fill="x", padx=5, pady=(2, 0))
+
+            # BOTTOM ROW: Buttons (hidden initially)
+            button_row = tk.Frame(row, bg="white")
+            button_row.pack(fill="x", padx=5, pady=(0, 4))
+            button_row.pack_forget()
+
+            # Create buttons
+            buttons = []
+            for btn_text in ["MC", "M+", "M-"]:
+                btn = tk.Button(
+                    button_row,
+                    text=btn_text,
+                    font=("Segoe UI", 10),
+                    width=4,
+                    relief="flat",
+                    command=lambda
+                    b=btn_text,
+                    v=item: handle_memory_action(b, v)
+                )
+                btn.pack(side="left", padx=3)
+                buttons.append(btn)
+
+            # Hover functions
+            def on_enter(e):
+                row.config(bg="#e0e0e0")
+                value_entry.config(readonlybackground="#e0e0e0")
+                button_row.pack(fill="x", padx=5, pady=(0, 4))
+
+            def on_leave(e):
+                # Check if mouse is still inside the row
+                x, y = row.winfo_pointerxy()
+                widget_under_mouse = row.winfo_containing(x, y)
+                if (widget_under_mouse and
+                        widget_under_mouse.winfo_toplevel() ==
+                        row.winfo_toplevel()):
+                    return  # still inside, do nothing
+
+                row.config(bg="white")
+                value_entry.config(readonlybackground="white")
+                button_row.pack_forget()
+
+            # Bind hover to ALL widgets
+            widgets = [row, value_entry, button_row] + buttons
+            for w in widgets:
+                w.bind("<Enter>", on_enter)
+                w.bind("<Leave>", on_leave)
 
         delete_btn = tk.Button(frame, text="🗑️", command=clear_memory)
         delete_btn.place(x=258, y=214)

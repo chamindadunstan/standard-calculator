@@ -18,24 +18,40 @@ def calculate_expression(expr: str):
 
 
 # ============================
+#   SAFE NUMBER CONVERSION
+# ============================
+def _safe_number(value):
+    """Convert to float safely. Empty or invalid → 0."""
+    try:
+        return float(value)
+    except Exception:
+        return 0.0
+
+
+# ============================
 #   MEMORY FUNCTIONS
 # ============================
 def memory_store(value):
-    memory.append(value)
+    num = _safe_number(value)
+    memory.append(str(num))
 
 
 def memory_add(value):
+    num = _safe_number(value)
+
     if memory:
-        memory[-1] = str(float(memory[-1]) + float(value))
+        memory[-1] = str(_safe_number(memory[-1]) + num)
     else:
-        memory.append(value)
+        memory.append(str(num))
 
 
 def memory_subtract(value):
+    num = _safe_number(value)
+
     if memory:
-        memory[-1] = str(float(memory[-1]) - float(value))
+        memory[-1] = str(_safe_number(memory[-1]) - num)
     else:
-        memory.append("-" + value)
+        memory.append(str(-num))
 
 
 def memory_recall():
@@ -75,7 +91,7 @@ def sqrt(x):
 
 
 # ============================
-#   BINARY OPERATIONS
+#   SIGN TOGGLE
 # ============================
 def toggle_sign(x):
     try:
@@ -117,6 +133,8 @@ def append_digit(expr, digit):
 
 
 def append_decimal(expr):
+    # Prevent multiple decimals in the current number
+
     if "." in expr.split()[-1]:
         return expr
     return expr + "."

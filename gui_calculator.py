@@ -49,18 +49,52 @@ class ToolTip:
 # === Variables ===
 expression_var = tk.StringVar()
 result_var = tk.StringVar()
-memory_data = []
 history_data = []
 memory_visible = tk.BooleanVar(value=False)
 history_visible = tk.BooleanVar(value=False)
 
+just_evaluated = tk.BooleanVar(value=False)
+
+
+# ============================================================
+#   MEMORY VALUE HELPER
+# ============================================================
+def get_memory_value():
+    expr = expression_var.get().strip()
+    res = result_var.get().strip()
+
+    # If expression ends with "=", use result
+    if expr.endswith("="):
+        return res
+
+    # If user is typing, use expression
+    if expr:
+        return expr
+
+    # If no expression but result exists, use result
+    if res:
+        return res
+
+    return "0"
+
+
 # === Display ===
-expression_label = tk.Label(root, textvariable=expression_var,
-                            font=("Segoe UI", 14), anchor="e", bg="white")
+expression_label = tk.Label(
+    root,
+    textvariable=expression_var,
+    font=("Segoe UI", 14),
+    anchor="e",
+    bg="white"
+)
 expression_label.pack(fill="x", padx=10, pady=(10, 0))
 
-result_label = tk.Label(root, textvariable=result_var,
-                        font=("Segoe UI", 24), anchor="e", bg="white")
+result_label = tk.Label(
+    root,
+    textvariable=result_var,
+    font=("Segoe UI", 28),
+    anchor="e",
+    bg="white"
+)
 result_label.pack(fill="x", padx=10, pady=(0, 10))
 
 # ============================================================
@@ -75,20 +109,34 @@ def show_history_overlay():
     y = (history_btn.winfo_rooty() - root.winfo_rooty() +
          history_btn.winfo_height())
 
-    history_overlay.place(x=x-264, y=y+25, width=300, height=250)
+    history_overlay.place(x=x-264, y=y+27, width=300, height=243)
     history_overlay.lift()
 
     for w in history_overlay.winfo_children():
         w.destroy()
 
-    for item in history_data:
+    if not history_data:
         tk.Label(
-            history_overlay, text=item, anchor="w", bg="#f0f0f0"
+            history_overlay,
+            text="There is no history yet",
+            anchor="center",
+            bg="#f0f0f0",
+            fg="gray"
+        ).pack(expand=True, fill="both")
+        return  # No delete button
+    else:
+        for item in history_data:
+            tk.Label(
+                history_overlay,
+                text=item,
+                anchor="w",
+                bg="#f0f0f0"
             ).pack(fill="x", padx=5, pady=2)
 
-    tk.Button(
-        history_overlay, text="🗑️", command=clear_history
-        ).place(x=260, y=220)
+        delete_btn = tk.Button(
+            history_overlay, text="🗑️", command=clear_history)
+        delete_btn.place(x=258, y=214)
+        ToolTip(delete_btn, "Clear all history")
 
 
 def hide_history_overlay():
@@ -130,20 +178,35 @@ def show_memory_overlay():
     x = mview_btn.winfo_rootx() - root.winfo_rootx()
     y = mview_btn.winfo_rooty() - root.winfo_rooty() + mview_btn.winfo_height()
 
-    memory_overlay.place(x=x-252, y=y, width=300, height=250)
+    memory_overlay.place(x=x-251, y=y+1, width=300, height=243)
     memory_overlay.lift()
 
     for w in memory_overlay.winfo_children():
         w.destroy()
 
-    for item in memory_list():
+    mem = memory_list()
+
+    if not mem:
         tk.Label(
-            memory_overlay, text=item, anchor="w", bg="#f0f0f0"
+            memory_overlay,
+            text="There is nothing saved in memory",
+            anchor="center",
+            bg="#f0f0f0",
+            fg="gray"
+        ).pack(expand=True, fill="both")
+        return  # No delete button
+    else:
+        for item in mem:
+            tk.Label(
+                memory_overlay,
+                text=item,
+                anchor="w",
+                bg="#f0f0f0"
             ).pack(fill="x", padx=5, pady=2)
 
-    tk.Button(
-        memory_overlay, text="🗑️", command=clear_memory
-        ).place(x=260, y=220)
+        delete_btn = tk.Button(memory_overlay, text="🗑️", command=clear_memory)
+        delete_btn.place(x=258, y=214)
+        ToolTip(delete_btn, "Clear all memory")
 
 
 def hide_memory_overlay():
@@ -161,9 +224,24 @@ def toggle_memory_panel():
 
 def clear_memory():
     memory_clear()
-    memory_visible.set(False)
     hide_memory_overlay()
+    memory_visible.set(False)
     update_memory_buttons()
+
+
+# ============================================================
+#   MEMORY BUTTON STATE CONTROL
+# ============================================================
+
+def update_memory_buttons():
+    if memory_list():  # use operations.py memory
+        mc_btn.config(state="normal")
+        mr_btn.config(state="normal")
+        mview_btn.config(state="normal")
+    else:
+        mc_btn.config(state="disabled")
+        mr_btn.config(state="disabled")
+        mview_btn.config(state="disabled")
 
 
 # ============================================================
@@ -174,24 +252,35 @@ mem_frame = tk.Frame(root)
 mem_frame.pack(fill="x", padx=10)
 
 mc_btn = tk.Button(
-    mem_frame, text="MC", command=lambda: (
-        memory_clear(), update_memory_buttons()))
+    mem_frame, text="MC",
+    command=lambda: (memory_clear(), update_memory_buttons())
+)
 mr_btn = tk.Button(
     mem_frame, text="MR",
     command=lambda: result_var.set(memory_recall())
 )
 mplus_btn = tk.Button(
     mem_frame, text="M+",
-    command=lambda: (memory_add(result_var.get()), update_memory_buttons())
+    command=lambda: (
+        memory_add(get_memory_value()),
+        update_memory_buttons()
+    )
 )
+
 mminus_btn = tk.Button(
     mem_frame, text="M−",
     command=lambda: (
-        memory_subtract(result_var.get()), update_memory_buttons())
+        memory_subtract(get_memory_value()),
+        update_memory_buttons()
+    )
 )
+
 ms_btn = tk.Button(
     mem_frame, text="MS",
-    command=lambda: (memory_store(result_var.get()), update_memory_buttons())
+    command=lambda: (
+        memory_store(get_memory_value()),
+        update_memory_buttons()
+    )
 )
 mview_btn = tk.Button(mem_frame, text="Mv", command=toggle_memory_panel)
 
@@ -202,6 +291,9 @@ mplus_btn.pack(side="left", expand=True, fill="x")
 mminus_btn.pack(side="left", expand=True, fill="x")
 ms_btn.pack(side="left", expand=True, fill="x")
 mview_btn.pack(side="left", expand=True, fill="x")
+
+# Initialize button states
+update_memory_buttons()
 
 # ============================================================
 #   Tool Tips for Memory Buttons
@@ -214,28 +306,22 @@ ToolTip(ms_btn, "Store in Memory")
 ToolTip(mview_btn, "View Memory")
 
 
-# Update button states based on memory
-def update_memory_buttons():
-    if memory_data:
-        mc_btn.config(state="normal")
-        mr_btn.config(state="normal")
-        mview_btn.config(state="normal")
-    else:
-        mc_btn.config(state="disabled")
-        mr_btn.config(state="disabled")
-        mview_btn.config(state="disabled")
-
-
+# ============================================================
+#   CALCULATION FUNCTIONS
+# ============================================================
 def calculate():
     expr = expression_var.get()
     result = calculate_expression(expr)
 
-    result_var.set(str(result))
-
     if result != "Error":
+        expression_var.set(f"{expr} =")   # Show full expression with "="
+        result_var.set(str(result))       # Show result below
         history_data.append(f"{expr} = {result}")
-
-    expression_var.set("")
+        just_evaluated.set(True)
+    else:
+        expression_var.set(expr)
+        result_var.set("Error")
+        just_evaluated.set(False)
 
     if history_visible.get():
         show_history_overlay()
@@ -251,6 +337,12 @@ btn_frame.pack(expand=True, fill="both", padx=10, pady=10)
 
 def make_button(text, row, col, colspan=1):
     def cmd():
+
+        # === Clear expression after evaluation ===
+        if just_evaluated.get():
+            expression_var.set("")
+            just_evaluated.set(False)
+
         current = expression_var.get()
         result = result_var.get()
 
@@ -335,16 +427,7 @@ def make_button(text, row, col, colspan=1):
 
         # === EQUALS ===
         if text == "=":
-            expr = expression_var.get()
-            result = calculate_expression(expr)
-            result_var.set(str(result))
-
-            if result != "Error":
-                history_data.append(f"{expr} = {result}")
-
-            expression_var.set("")
-            if history_visible.get():
-                show_history_overlay()
+            calculate()
             return
 
     btn = tk.Button(btn_frame, text=text, font=("Segoe UI", 12), command=cmd)

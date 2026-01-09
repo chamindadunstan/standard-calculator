@@ -64,11 +64,13 @@ def format_result(value):
 #   MEMORY FUNCTIONS
 # ============================
 def memory_store(value):
+    global memory
     num = _safe_number(value)
     memory.insert(0, format_number(num))
 
 
 def memory_add(value):
+    global memory
     num = _safe_number(value)
     if memory:
         memory[0] = format_number(_safe_number(memory[0]) + num)
@@ -77,6 +79,7 @@ def memory_add(value):
 
 
 def memory_subtract(value):
+    global memory
     num = _safe_number(value)
     if memory:
         memory[0] = format_number(_safe_number(memory[0]) - num)
@@ -93,6 +96,8 @@ def memory_clear():
 
 
 def memory_list():
+    global memory
+
     return memory.copy()
 
 

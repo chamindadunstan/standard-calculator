@@ -1,15 +1,20 @@
 import tkinter as tk
+from tkinter import ttk
 from operations import (
     calculate_expression, memory_store, memory_add, memory_subtract,
     memory_recall, memory_clear, memory_list, reciprocal, square, sqrt,
     toggle_sign,  backspace, percentage, format_number, format_result
 )
+from style import apply_styles
 
 # === Main Window Setup ===
 root = tk.Tk()
 root.title("Standard Calculator")
 root.geometry("320x420")
 root.minsize(320, 420)
+
+# === Apply Styles ===
+apply_styles()
 
 
 # === Tooltip Helper Class ===
@@ -53,6 +58,8 @@ memory_visible = tk.BooleanVar(value=False)
 history_visible = tk.BooleanVar(value=False)
 just_evaluated = tk.BooleanVar(value=False)
 last_was_operator = tk.BooleanVar(value=False)
+selected_history_row = None
+selected_memory_row = None
 history_popup = None
 memory_popup = None
 
@@ -61,25 +68,23 @@ memory_popup = None
 #   MEMORY VALUE HELPER
 # ============================================================
 def get_memory_value():
-    """Return only the current entry (bottom display) for memory operations."""
     val = result_var.get().strip()
-
-    # Normalize invalid or empty values
     if val in ("", ".", "-"):
         return "0"
-
     return val
 
 
 # EXPRESSION DISPLAY
-expression_label = tk.Label(
+expression_entry = tk.Label(
     root,
     textvariable=expression_var,
     font=("Segoe UI", 14),
     anchor="e",
-    bg="white"
+    bg="white",
+    padx=10,
+    pady=10
 )
-expression_label.pack(fill="x", padx=10, pady=(10, 0))
+expression_entry.pack(fill="x", padx=10, pady=(10, 0))
 
 # RESULT DISPLAY (Entry widget for selectable text)
 result_entry = tk.Entry(
@@ -90,7 +95,8 @@ result_entry = tk.Entry(
     bd=0,
     relief="flat",
     readonlybackground="white",
-    state="readonly"
+    state="readonly",
+    cursor="arrow"
 )
 result_entry.pack(fill="x", padx=10, pady=(0, 10))
 
@@ -110,8 +116,10 @@ def on_result_leave(e):
     result_entry.config(readonlybackground="white")
 
 
-result_entry.bind("<Enter>", on_result_enter)
-result_entry.bind("<Leave>", on_result_leave)
+result_entry.bind("<Enter>", lambda e: result_entry.config
+                  (readonlybackground="#e0e0e0"))
+result_entry.bind("<Leave>", lambda e: result_entry.config
+                  (readonlybackground="white"))
 
 
 # ============================================================
@@ -165,7 +173,8 @@ history_inner.pack(expand=True, fill="both")
 
 
 def show_history_overlay():
-    global history_popup
+    global history_popup, selected_history_row
+    selected_history_row = None
 
     # Destroy old popup if it exists
     try:
@@ -179,13 +188,12 @@ def show_history_overlay():
 
     x = history_btn.winfo_rootx()
     y = history_btn.winfo_rooty() + history_btn.winfo_height()
-    history_popup.geometry(f"300x243+{x-264}+{y+27}")
-
-    history_popup.bind("<FocusOut>", lambda e: hide_history_overlay())
+    history_popup.geometry(f"300x233+{x-263}+{y+27}")
 
     frame = tk.Frame(history_popup, bg="#f0f0f0")
     frame.pack(expand=True, fill="both")
 
+    # No history
     if not history_data:
         tk.Label(
             frame,
@@ -195,13 +203,78 @@ def show_history_overlay():
             bg="#f0f0f0",
             fg="gray"
         ).pack(expand=True, fill="both")
-    else:
-        for item in history_data:
-            lbl = make_hover_label(frame, item, on_click=copy_to_clipboard)
-            lbl.pack(fill="x")
+        return
+    # Build rows
+    for item in history_data:
 
-        delete_btn = tk.Button(frame, text="🗑️", command=clear_history)
-        delete_btn.place(x=258, y=214)
+        # Row container
+        row = tk.Frame(frame, bg="white")
+        row.pack(fill="x", pady=2)
+
+        # Value label
+        value_entry = tk.Entry(
+            row,
+            font=("Segoe UI", 14),
+            justify="right",
+            bd=0,
+            relief="flat",
+            bg="white",
+        )
+        value_entry.insert(0, str(item))
+        value_entry.configure(cursor="arrow")
+        value_entry.pack(fill="x", padx=5, pady=(2, 0))
+
+        # CLICK HANDLER
+        def on_click_history(event, row=row, value=item, entry=value_entry):
+            global selected_history_row
+
+            # Remove previous highlight
+            if selected_history_row and selected_history_row != row:
+                selected_history_row.config(bg="#cce5ff")
+                for child in selected_history_row.winfo_children():
+                    child.config(bg="white")
+
+            # Highlight row
+            row.config(bg="#cce5ff")
+            for child in row.winfo_children():
+                child.config(bg="#cce5ff")
+
+            selected_history_row = row
+
+            # Select text
+            entry.configure(state="normal")
+            entry.selection_range(0, tk.END)
+            entry.configure(state="readonly")
+            entry.focus_set()
+
+            # Copy to clipboard
+            root.clipboard_clear()
+            root.clipboard_append(value)
+
+        # Bind click
+        row.bind("<Button-1>", on_click_history)
+        value_entry.bind("<Button-1>", on_click_history)
+
+        # Hover functions
+        def on_enter(e, row=row, value_entry=value_entry):
+            if row != selected_history_row:
+                row.config(bg="#e0e0e0")
+                value_entry.config(bg="#e0e0e0")
+
+        def on_leave(e, row=row, value_entry=value_entry):
+            if row != selected_history_row:
+                row.config(bg="white")
+                value_entry.config(readonlybackground="white")
+
+        # Bind hover
+        row.bind("<Enter>", on_enter)
+        row.bind("<Leave>", on_leave)
+        value_entry.bind("<Enter>", on_enter)
+        value_entry.bind("<Leave>", on_leave)
+
+    # Delete button
+    delete_btn = tk.Button(frame, text="🗑️", command=clear_history)
+    delete_btn.place(x=258, y=204)
 
 
 def hide_history_overlay():
@@ -225,9 +298,17 @@ def toggle_history_panel():
 history_top_frame = tk.Frame(root)
 history_top_frame.pack(fill="x", padx=10, pady=(5, 0))
 
-history_btn = tk.Button(history_top_frame, text="🕒", font=("Segoe UI", 12),
-                        command=toggle_history_panel)
-history_btn.pack(side="right")
+history_btn = tk.Button(
+    history_top_frame,
+    text="🕒",
+    font=("Segoe UI", 12),
+    relief="flat",
+    bg="#f3f3f3",
+    activebackground="#e0e0e0",
+    bd=0,
+    command=toggle_history_panel
+)
+history_btn.pack(side="right", padx=5)
 
 
 def clear_history():
@@ -256,9 +337,6 @@ def handle_memory_action(action, value):
     show_memory_overlay()
 
 
-print("Memory contents:", mem)
-
-
 def show_memory_overlay():
     global memory_popup
     try:
@@ -271,11 +349,10 @@ def show_memory_overlay():
 
     x = mview_btn.winfo_rootx()
     y = mview_btn.winfo_rooty() + mview_btn.winfo_height()
-    memory_popup.geometry(f"300x243+{x-251}+{y+1}")
+    memory_popup.geometry(f"300x233+{x-251}+{y+1}")
 
-    memory_popup.bind("<FocusOut>", lambda e: hide_memory_overlay())
-
-    frame = tk.Frame(memory_popup, bg="#f0f0f0")
+    # PANEL FRAME
+    frame = tk.Frame(memory_popup, bg="#f3f3f3", padx=8, pady=6)
     frame.pack(expand=True, fill="both")
 
     mem = memory_list()
@@ -300,57 +377,90 @@ def show_memory_overlay():
             # TOP ROW: Memory value (Entry)
             value_entry = tk.Entry(
                 row,
-                font=("Segoe UI", 16),
+                font=("Segoe UI", 14),
                 justify="right",
                 bd=0,
                 relief="flat",
-                readonlybackground="white",
-                state="readonly"
+                bg="white",
+                readonlybackground="#ffffff",
+                state="normal",
+                cursor="arrow"
             )
-            value_entry.insert(0, item)
-            value_entry.configure(cursor="arrow")
+            value_entry.insert(0, str(item))
+            value_entry.config(state="readonly")
             value_entry.pack(fill="x", padx=5, pady=(2, 0))
 
             # BOTTOM ROW: Buttons (hidden initially)
             button_row = tk.Frame(row, bg="white")
             button_row.pack(fill="x", padx=5, pady=(0, 4))
-            button_row.pack_forget()
 
-            # Create buttons
+            # CLICK HANDLER
+            def on_click_row(event, row=row, value=item):
+                global selected_memory_row
+
+                # Remove highlight from previous selection
+                if selected_memory_row and selected_memory_row != row:
+                    selected_memory_row.config(bg="white")
+                    for child in selected_memory_row.winfo_children():
+                        child.config(bg="white")
+
+                # Highlight this row
+                row.config(bg="#cce5ff")
+                for child in row.winfo_children():
+                    child.config(bg="#cce5ff")
+
+                selected_memory_row = row
+
+                # Copy value to clipboard
+                root.clipboard_clear()
+                root.clipboard_append(value)
+
+            # Bind click to entire row
+            row.bind("<Button-1>", on_click_row)
+            # value_entry.bind("<Button-1>", on_click_row)
+            button_row.bind("<Button-1>", on_click_row)
+
+            # BUTTON CONTAINER
+            right_container = tk.Frame(button_row, bg="white")
+            right_container.pack(side="right")
+
+            # BUTTONS
             buttons = []
             for btn_text in ["MC", "M+", "M-"]:
-                btn = tk.Button(
-                    button_row,
+                btn = ttk.Button(
+                    right_container,
                     text=btn_text,
-                    font=("Segoe UI", 10),
-                    width=4,
-                    relief="flat",
+                    style="Memory.TButton",
                     command=lambda
                     b=btn_text,
                     v=item: handle_memory_action(b, v)
                 )
-                btn.pack(side="left", padx=3)
+                btn.pack(side="left", padx=2)
                 buttons.append(btn)
 
-            # Hover functions
-            def on_enter(e):
-                row.config(bg="#e0e0e0")
-                value_entry.config(readonlybackground="#e0e0e0")
+            # HOVER
+            def on_enter(e, row=row, value_entry=value_entry):
+                if row != selected_memory_row:
+                    row.config(bg="#e0e0e0")
+                    value_entry.config(readonlybackground="#e0e0e0")
                 button_row.pack(fill="x", padx=5, pady=(0, 4))
 
-            def on_leave(e):
-                # Check if mouse is still inside the row
+            def on_leave(e, row=row, value_entry=value_entry):
                 x, y = row.winfo_pointerxy()
-                widget_under_mouse = row.winfo_containing(x, y)
-                if (widget_under_mouse and
-                        widget_under_mouse.winfo_toplevel() ==
-                        row.winfo_toplevel()):
-                    return  # still inside, do nothing
+                widget = row.winfo_containing(x, y)
 
-                row.config(bg="white")
-                value_entry.config(readonlybackground="white")
+                # If mouse is still inside the row, do nothing
+                if widget and widget.master == row:
+                    return
+
+                if row != selected_memory_row:
+                    row.config(bg="white")
+                    value_entry.config(readonlybackground="#ffffff")
+
                 button_row.pack_forget()
-
+            for w in buttons:
+                w.bind("<Enter>", on_enter)
+                w.bind("<Leave>", on_leave)
             # Bind hover to ALL widgets
             widgets = [row, value_entry, button_row] + buttons
             for w in widgets:
@@ -358,7 +468,7 @@ def show_memory_overlay():
                 w.bind("<Leave>", on_leave)
 
         delete_btn = tk.Button(frame, text="🗑️", command=clear_memory)
-        delete_btn.place(x=258, y=214)
+        delete_btn.place(x=250, y=198)
 
 
 def hide_memory_overlay():
@@ -400,20 +510,20 @@ def is_descendant(widget, ancestor):
 # ============================================================
 
 def on_click_outside(event):
-    widget = event.widget
+    mouse_widget = root.winfo_containing(event.x_root, event.y_root)
 
     # Ignore clicks on toggle buttons
-    if widget in (history_btn, mview_btn):
+    if mouse_widget in (history_btn, mview_btn):
         return
 
     # If history popup exists and click is inside it → do nothing
     if history_visible.get() and history_popup is not None:
-        if is_descendant(widget, history_popup):
+        if is_descendant(mouse_widget, history_popup):
             return
 
     # If memory popup exists and click is inside it → do nothing
     if memory_visible.get() and memory_popup is not None:
-        if is_descendant(widget, memory_popup):
+        if is_descendant(mouse_widget, memory_popup):
             return
 
     # Otherwise click is outside → close panels

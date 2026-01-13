@@ -172,30 +172,27 @@ history_inner = tk.Frame(history_overlay, bg="#f0f0f0")
 history_inner.pack(expand=True, fill="both")
 
 
-# ============================================================
-#   FLOATING HISTORY PANEL
-# ============================================================
-
 def show_history_overlay():
-    global history_popup, selected_history_row
+    global history_popup, selected_history_row, history_delete_btn
     selected_history_row = None
 
+    # Destroy old popup if exists
     try:
         history_popup.destroy()
     except Exception:
         pass
 
+    # Create new popup
     history_popup = tk.Toplevel(root)
     history_popup.overrideredirect(True)
     history_popup.configure(bg="#f0f0f0", bd=1, relief="solid")
 
-    x = history_btn.winfo_rootx()
-    y = history_btn.winfo_rooty() + history_btn.winfo_height()
-    history_popup.geometry(f"300x233+{x-263}+{y+27}")
+    resize_floating_panels()
 
     frame = tk.Frame(history_popup, bg="#f0f0f0")
     frame.pack(expand=True, fill="both")
 
+    # Empty history
     if not history_data:
         tk.Label(
             frame,
@@ -207,14 +204,25 @@ def show_history_overlay():
         ).pack(expand=True, fill="both")
         return
 
+    #   BUILD HISTORY ROWS
     for item in history_data:
-
+        # Split into expression and result
+        if "=" in item:
+            expr, result = item.split("=")
+            expr = expr.strip() + " ="
+            result = result.strip()
+        else:
+            expr = item
+            result = ""
+        # --- create row ---
         row = tk.Frame(frame, bg="white")
         row.pack(fill="x", pady=2)
 
-        value_entry = tk.Entry(
+        # Expression ENTRY
+        expr_entry = tk.Entry(
             row,
-            font=("Segoe UI", 14),
+            text=expr,
+            font=("Segoe UI", 12),
             justify="right",
             bd=0,
             relief="flat",
@@ -223,54 +231,87 @@ def show_history_overlay():
             state="normal",
             cursor="arrow"
         )
-        value_entry.insert(0, str(item))
-        value_entry.config(state="readonly")
-        value_entry.pack(fill="x", padx=5, pady=(2, 0))
+        expr_entry.insert(0, expr)
+        expr_entry.config(state="readonly")
+        expr_entry.pack(fill="x", padx=5, pady=(2, 0))
+
+        # Result label
+        result_entry = tk.Entry(
+            row,
+            text=result,
+            font=("Segoe UI", 16, "bold"),
+            justify="right",
+            bd=0,
+            relief="flat",
+            bg="white",
+            readonlybackground="white",
+            state="normal",
+            cursor="arrow"
+        )
+        result_entry.insert(0, result)
+        result_entry.config(state="readonly")
+        result_entry.pack(fill="x", padx=5, pady=(2, 0))
 
         # CLICK HANDLER
-        def on_click_history(event, row=row, value=item, entry=value_entry):
+        def on_click(event, entry, value):
             global selected_history_row
 
-            if selected_history_row and selected_history_row != row:
-                selected_history_row.config(bg="white")
-                for child in selected_history_row.winfo_children():
-                    child.config(bg="white")
+            # Reset previous selection
+            if selected_history_row and selected_history_row != entry:
+                selected_history_row.config(
+                    bg="white", readonlybackground="white")
 
-            row.config(bg="#cce5ff")
-            for child in row.winfo_children():
-                child.config(bg="#cce5ff")
+            # Highlight selected entry
+            entry.config(bg="#cce5ff", readonlybackground="#cce5ff")
+            selected_history_row = entry
 
-            selected_history_row = row
-
-            entry.configure(state="normal")
-            entry.selection_range(0, tk.END)
-            entry.configure(state="readonly")
-            entry.focus_set()
-
+            # Copy to clipboard
             root.clipboard_clear()
             root.clipboard_append(value)
 
-        row.bind("<Button-1>", on_click_history)
-        value_entry.bind("<Button-1>", on_click_history)
+            # Select all text
+            entry.config(state="normal")
+            entry.selection_range(0, tk.END)
+            entry.config(state="readonly")
 
-        # HOVER
-        def on_enter(e, row=row, value_entry=value_entry):
-            if row != selected_history_row:
-                row.config(bg="#e0e0e0")
-                value_entry.config(bg="#e0e0e0")
+            result_var.set("")
+            expression_var.set("")
+            just_evaluated.set(False)
+            last_was_operator.set(False)
 
-        def on_leave(e, row=row, value_entry=value_entry):
-            if row != selected_history_row:
-                row.config(bg="white")
-                value_entry.config(bg="white")
+        # Bind click to both rows
+        expr_entry.bind("<Button-1>", lambda e, ent=expr_entry,
+                        v=item: on_click(e, ent, v))
+        result_entry.bind("<Button-1>", lambda e, ent=result_entry,
+                          v=item: on_click(e, ent, v))
 
+        # --- HOVER HANDLERS ---
+        def on_enter(e, r=row):
+            if selected_history_row not in r.winfo_children():
+                r.config(bg="#e0e0e0")
+                expr_entry.config(bg="#e0e0e0", readonlybackground="#e0e0e0")
+                result_entry.config(bg="#e0e0e0", readonlybackground="#e0e0e0")
+
+        def on_leave(e, r=row):
+            if selected_history_row not in r.winfo_children():
+                r.config(bg="white")
+                expr_entry.config(bg="white", readonlybackground="white")
+                result_entry.config(bg="white", readonlybackground="white")
+
+        # Hover bindings
         row.bind("<Enter>", on_enter)
         row.bind("<Leave>", on_leave)
-        value_entry.bind("<Enter>", on_enter)
-        value_entry.bind("<Leave>", on_leave)
+        expr_entry.bind("<Enter>", on_enter)
+        expr_entry.bind("<Leave>", on_leave)
+        result_entry.bind("<Enter>", on_enter)
+        result_entry.bind("<Leave>", on_leave)
 
+    # --- DELETE BUTTON ---
     delete_btn = tk.Button(frame, text="🗑️", command=clear_history)
-    delete_btn.place(x=258, y=204)
+    history_delete_btn = delete_btn
+    delete_btn.place(x=0, y=0)
+
+    resize_floating_panels()
 
 
 def hide_history_overlay():
@@ -288,6 +329,11 @@ def toggle_history_panel():
     else:
         history_visible.set(True)
         show_history_overlay()
+
+        result_var.set("")
+        expression_var.set("")
+        just_evaluated.set(False)
+        last_was_operator.set(False)
 
 
 # === History Button Above Display ===
@@ -333,12 +379,8 @@ def handle_memory_action(action, value):
     show_memory_overlay()
 
 
-# ============================================================
-#   FLOATING MEMORY PANEL
-# ============================================================
-
 def show_memory_overlay():
-    global memory_popup, selected_memory_row
+    global memory_popup, selected_memory_row, memory_delete_btn
     selected_memory_row = None
 
     try:
@@ -350,9 +392,7 @@ def show_memory_overlay():
     memory_popup.overrideredirect(True)
     memory_popup.configure(bg="#f0f0f0", bd=1, relief="solid")
 
-    x = mview_btn.winfo_rootx()
-    y = mview_btn.winfo_rooty() + mview_btn.winfo_height()
-    memory_popup.geometry(f"300x233+{x-251}+{y+1}")
+    resize_floating_panels()
 
     frame = tk.Frame(memory_popup, bg="#f3f3f3", padx=8, pady=6)
     frame.pack(expand=True, fill="both")
@@ -416,21 +456,24 @@ def show_memory_overlay():
                 selected_memory_row.config(bg="white")
                 for child in selected_memory_row.winfo_children():
                     child.config(bg="white")
-
+            # Apply blue highlight
             row.config(bg="#cce5ff")
             for child in row.winfo_children():
                 child.config(bg="#cce5ff")
 
             selected_memory_row = row
-
+            # Copy memory value
             root.clipboard_clear()
             root.clipboard_append(value)
 
         row.bind("<Button-1>", on_click_row)
         button_row.bind("<Button-1>", on_click_row)
-
+    # --- DELETE BUTTON ---
     delete_btn = tk.Button(frame, text="🗑️", command=clear_memory)
-    delete_btn.place(x=250, y=198)
+    memory_delete_btn = delete_btn
+    delete_btn.place(x=0, y=0)
+
+    resize_floating_panels()
 
 
 def hide_memory_overlay():
@@ -470,20 +513,50 @@ def is_descendant(widget, ancestor):
 # ============================================================
 #   RESIZE HANDLER
 # ============================================================
-def resize_floating_panels(event):
+def resize_floating_panels(event=None):
     global history_popup, memory_popup
+    global history_delete_btn, memory_delete_btn
 
-    # Resize HISTORY panel if visible
+    calc_x = root.winfo_rootx()
+    calc_width = root.winfo_width()
+    calc_height = root.winfo_height()
+
+    new_width = calc_width - 20
+    new_height = calc_height - 200
+    if new_height < 150:
+        new_height = 150
+
+    # HISTORY PANEL
     if history_popup and history_popup.winfo_exists():
-        x = history_btn.winfo_rootx()
-        y = history_btn.winfo_rooty() + history_btn.winfo_height()
-        history_popup.geometry(f"{event.width - 50}x233+{x-263}+{y+27}")
+        btn_y = history_btn.winfo_rooty() + history_btn.winfo_height()
+        new_x = calc_x + 10
+        new_y = btn_y + 31
 
-    # Resize MEMORY panel if visible
+        history_popup.geometry(f"{new_width}x{new_height}+{new_x}+{new_y}")
+
+        # Move delete button only if it still exists
+        if ('history_delete_btn' in globals() and
+           history_delete_btn.winfo_exists()):
+            history_delete_btn.place(
+                x=new_width - 43,
+                y=new_height - 30
+            )
+
+    # MEMORY PANEL
     if memory_popup and memory_popup.winfo_exists():
-        x = mview_btn.winfo_rootx()
-        y = mview_btn.winfo_rooty() + mview_btn.winfo_height()
-        memory_popup.geometry(f"{event.width - 50}x233+{x-251}+{y+1}")
+        btn_y = mview_btn.winfo_rooty() + mview_btn.winfo_height()
+        new_x = calc_x + 10
+        new_y = btn_y + 5
+
+        memory_popup.geometry(f"{new_width}x{new_height}+{new_x}+{new_y}")
+
+        # Move delete button only if it still exists
+        if ('memory_delete_btn' in globals() and
+           memory_delete_btn.winfo_exists()):
+            memory_delete_btn.place(
+                x=new_width - 51,
+                y=new_height - 36
+            )
 
 
 # Bind resize event (ALSO ADD HERE)
@@ -662,17 +735,24 @@ def make_button(text, row, col, colspan=1):
 
         # === NUMBER BUTTONS ===
         if text.isdigit():
+            if history_visible.get():
+                return
+
             if just_evaluated.get():
-                expression_var.set("")
+                expression_var.set(text)
                 result_var.set(text)
                 just_evaluated.set(False)
                 last_was_operator.set(False)
                 return
 
             if last_was_operator.get():
+                expression_var.set(expression_var.get() + text)
                 result_var.set(text)
                 last_was_operator.set(False)
                 return
+
+            # Normal typing
+            expression_var.set(expression_var.get() + text)
 
             if result in ("", "0"):
                 result_var.set(text)
@@ -798,18 +878,20 @@ def make_button(text, row, col, colspan=1):
         # === EQUALS ===
         if text == "=":
             top = expression_var.get().strip()
-            bottom = result_var.get().strip()
 
-            expr = top + bottom
+            # Evaluate only the typed expression
+            expr = top
+
             result = calculate_expression(expr)
 
             if result != "Error":
                 formatted = format_result(result)
 
+                # Show expression and result
                 expression_var.set(expr + " =")
                 result_var.set(formatted)
 
-                # newest history at top
+                # Add to history
                 history_data.insert(0, f"{expr} = {formatted}")
 
                 just_evaluated.set(True)
@@ -821,8 +903,8 @@ def make_button(text, row, col, colspan=1):
 
             if history_visible.get():
                 show_history_overlay()
-            return
 
+            return
     btn = tk.Button(btn_frame, text=text, font=("Segoe UI", 12), command=cmd)
     btn.grid(row=row, column=col, columnspan=colspan,
              sticky="nsew", padx=2, pady=2)

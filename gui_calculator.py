@@ -9,7 +9,7 @@ from style import apply_styles
 
 # === Main Window Setup ===
 root = tk.Tk()
-root.title("Standard Calculator — TEST BUILD")
+root.title("Standard Calculator")
 root.geometry("320x420")
 root.minsize(320, 420)
 
@@ -73,21 +73,24 @@ last_operand = None       # for repeated equals
 
 
 def hide_history_overlay():
-    global history_popup
+    """Close the history popup completely."""
+    global history_popup, selected_history_row
     if history_popup is not None:
         try:
             history_popup.destroy()
         except Exception:
             pass
         history_popup = None
+    selected_history_row = None
     history_visible.set(False)
 
 
 def toggle_history_panel():
+    """Toggle the history panel cleanly."""
     if history_visible.get():
         hide_history_overlay()
     else:
-        hide_history_overlay()   # ensure no old popups remain
+        hide_history_overlay()  # ensure no old popups remain
         show_history_overlay()
         history_visible.set(True)
 
@@ -892,12 +895,6 @@ def make_button(text, row, col, colspan=1):
 
         # === EQUALS ===
         if text == "=":
-            print("= pressed")
-            print("  pending_operator:", pending_operator)
-            print("  current_value:", repr(current_value))
-            print("  stored_value:", stored_value)
-            print("  last_operator:", last_operator)
-            print("  last_operand:", last_operand)
 
             # Case 1: normal evaluation
             if pending_operator and current_value != "":

@@ -3,13 +3,13 @@ from tkinter import ttk
 from operations import (
     calculate_expression, memory_store, memory_add, memory_subtract,
     memory_recall, memory_clear, memory_list, reciprocal, square, sqrt,
-    toggle_sign,  backspace, percentage, format_number, format_result
+    toggle_sign, percentage, format_number
 )
 from style import apply_styles
 
 # === Main Window Setup ===
 root = tk.Tk()
-root.title("Standard Calculator")
+root.title("Standard Calculator — TEST BUILD")
 root.geometry("320x420")
 root.minsize(320, 420)
 
@@ -62,6 +62,34 @@ selected_history_row = None
 selected_memory_row = None
 history_popup = None
 memory_popup = None
+# ============================================================
+#   INTERNAL STATE (Windows Mode A)
+# ============================================================
+current_value = ""        # number being typed
+stored_value = None       # left operand
+pending_operator = None   # operator waiting to be applied
+last_operator = None      # for repeated equals
+last_operand = None       # for repeated equals
+
+
+def hide_history_overlay():
+    global history_popup
+    if history_popup is not None:
+        try:
+            history_popup.destroy()
+        except Exception:
+            pass
+        history_popup = None
+    history_visible.set(False)
+
+
+def toggle_history_panel():
+    if history_visible.get():
+        hide_history_overlay()
+    else:
+        hide_history_overlay()   # ensure no old popups remain
+        show_history_overlay()
+        history_visible.set(True)
 
 
 # ============================================================
@@ -177,10 +205,12 @@ def show_history_overlay():
     selected_history_row = None
 
     # Destroy old popup if exists
-    try:
-        history_popup.destroy()
-    except Exception:
-        pass
+    if history_popup is not None:
+        try:
+            history_popup.destroy()
+        except Exception:
+            pass
+        history_popup = None
 
     # Create new popup
     history_popup = tk.Toplevel(root)
@@ -252,9 +282,11 @@ def show_history_overlay():
         result_entry.config(state="readonly")
         result_entry.pack(fill="x", padx=5, pady=(2, 0))
 
-        # CLICK HANDLER
+        # CLICK HANDLER (H1: load expression + result)
         def on_click(event, entry, value):
             global selected_history_row
+            global current_value, stored_value, pending_operator
+            global last_operator, last_operand
 
             # Reset previous selection
             if selected_history_row and selected_history_row != entry:
@@ -274,10 +306,28 @@ def show_history_overlay():
             entry.selection_range(0, tk.END)
             entry.config(state="readonly")
 
-            result_var.set("")
-            expression_var.set("")
-            just_evaluated.set(False)
-            last_was_operator.set(False)
+            # --- H1 behavior: load expression + result into display ---
+            if "=" in value:
+                expr_raw, res_raw = value.split("=", 1)
+                expr_raw = expr_raw.strip()
+                res_raw = res_raw.strip()
+
+                # Top: full expression with "="
+                expression_var.set(expr_raw + " =")
+                # Bottom: result
+                result_var.set(res_raw)
+
+                # Reset internal state for new calculations
+                current_value = ""
+                try:
+                    stored_value = float(res_raw)
+                except ValueError:
+                    stored_value = None
+
+                pending_operator = None
+                last_operator = None
+                last_operand = None
+                just_evaluated.set(True)
 
         # Bind click to both rows
         expr_entry.bind("<Button-1>", lambda e, ent=expr_entry,
@@ -287,13 +337,15 @@ def show_history_overlay():
 
         # --- HOVER HANDLERS ---
         def on_enter(e, r=row):
-            if selected_history_row not in r.winfo_children():
+            if (not selected_history_row or selected_history_row
+               not in r.winfo_children()):
                 r.config(bg="#e0e0e0")
                 expr_entry.config(bg="#e0e0e0", readonlybackground="#e0e0e0")
                 result_entry.config(bg="#e0e0e0", readonlybackground="#e0e0e0")
 
         def on_leave(e, r=row):
-            if selected_history_row not in r.winfo_children():
+            if (not selected_history_row or selected_history_row
+               not in r.winfo_children()):
                 r.config(bg="white")
                 expr_entry.config(bg="white", readonlybackground="white")
                 result_entry.config(bg="white", readonlybackground="white")
@@ -312,28 +364,6 @@ def show_history_overlay():
     delete_btn.place(x=0, y=0)
 
     resize_floating_panels()
-
-
-def hide_history_overlay():
-    global history_popup
-    if history_popup:
-        history_popup.destroy()
-        history_popup = None
-        history_visible.set(False)
-
-
-def toggle_history_panel():
-    if history_visible.get():
-        history_visible.set(False)
-        hide_history_overlay()
-    else:
-        history_visible.set(True)
-        show_history_overlay()
-
-        result_var.set("")
-        expression_var.set("")
-        just_evaluated.set(False)
-        last_was_operator.set(False)
 
 
 # === History Button Above Display ===
@@ -627,7 +657,6 @@ mc_btn = tk.Button(
         memory_clear(),
         update_memory_buttons(),
         just_evaluated.set(True),
-        last_was_operator.set(False)
     )
 )
 
@@ -729,72 +758,67 @@ btn_frame.pack(expand=True, fill="both", padx=10, pady=10)
 
 def make_button(text, row, col, colspan=1):
     def cmd():
+        global current_value, stored_value, pending_operator
+        global last_operator, last_operand
+
+        # text = btn_text  # however you pass the button text
 
         current = expression_var.get()
         result = result_var.get()
 
         # === NUMBER BUTTONS ===
         if text.isdigit():
-            if history_visible.get():
-                return
-
             if just_evaluated.get():
-                expression_var.set(text)
+                # Start new calculation
+                current_value = text
+                expression_var.set("")
                 result_var.set(text)
                 just_evaluated.set(False)
-                last_was_operator.set(False)
-                return
-
-            if last_was_operator.get():
-                expression_var.set(expression_var.get() + text)
-                result_var.set(text)
-                last_was_operator.set(False)
                 return
 
             # Normal typing
-            expression_var.set(expression_var.get() + text)
-
-            if result in ("", "0"):
-                result_var.set(text)
-            else:
-                result_var.set(result + text)
+            current_value += text
+            result_var.set(current_value)
             return
 
         # === DECIMAL POINT ===
         if text == ".":
-            # After "=", start new entry "0."
             if just_evaluated.get():
-                result_var.set("0.")
+                current_value = "0."
                 expression_var.set("")
+                result_var.set("0.")
                 just_evaluated.set(False)
-                last_was_operator.set(False)
                 return
 
-            # After operator, start "0."
-            if last_was_operator.get():
-                result_var.set("0.")
-                last_was_operator.set(False)
-                return
-
-            # Normal case
-            if result in ("", "0"):
-                result_var.set("0.")
-            elif "." not in result:
-                result_var.set(result + ".")
+            if "." not in current_value:
+                if current_value == "":
+                    current_value = "0."
+                else:
+                    current_value += "."
+                result_var.set(current_value)
             return
 
         # === BASIC OPERATORS ===
         if text in ["+", "−", "×", "÷"]:
-            current_bottom = result_var.get().strip()
-            current_top = expression_var.get().strip()
+            # If no stored value yet
+            if stored_value is None:
+                stored_value = float(current_value or "0")
+                pending_operator = text
+                expression_var.set(f"{format_number(stored_value)} {text}")
+                current_value = ""
+                just_evaluated.set(False)
+                return
 
-            # Change operator if already present
-            if current_top.endswith(("+", "−", "×", "÷")):
-                expression_var.set(current_top[:-1] + text)
-            else:
-                expression_var.set(current_bottom + text)
+            # If operator exists, evaluate immediately
+            if current_value != "":
+                right = float(current_value)
+                stored_value = calculate_expression(
+                    f"{stored_value}{pending_operator}{right}")
+                expression_var.set(f"{format_number(stored_value)} {text}")
+                result_var.set(format_number(stored_value))
 
-            last_was_operator.set(True)
+            pending_operator = text
+            current_value = ""
             just_evaluated.set(False)
             return
 
@@ -805,106 +829,131 @@ def make_button(text, row, col, colspan=1):
 
         # === CLEAR ENTRY ===
         if text == "CE":
+            current_value = ""
             result_var.set("0")
             return
 
         # === CLEAR ALL ===
         if text == "C":
+            current_value = ""
+            stored_value = None
+            pending_operator = None
+            last_operator = None
+            last_operand = None
             expression_var.set("")
             result_var.set("0")
             just_evaluated.set(False)
-            last_was_operator.set(False)
             return
 
         # === BACKSPACE ===
         if text == "⌫":
-            # If result is active, backspace result
-            if not just_evaluated.get() and not last_was_operator.get():
-                result_var.set(backspace(result_var.get()))
-                return
-
-            # Otherwise backspace expression
-            expression_var.set(backspace(expression_var.get()))
+            if not just_evaluated.get():
+                current_value = current_value[:-1]
+                result_var.set(current_value or "0")
             return
 
         # === RECIPROCAL ===
         if text == "1/x":
-            result_var.set(str(reciprocal(result or current)))
+            if current_value == "":
+                current_value = result_var.get()
+            val = reciprocal(current_value)
+            current_value = str(val)
+            result_var.set(current_value)
             just_evaluated.set(True)
-            last_was_operator.set(False)
             return
 
         # === SQUARE ===
         if text == "x²":
-            result_var.set(str(square(result or current)))
+            if current_value == "":
+                current_value = result_var.get()
+            val = square(current_value)
+            current_value = str(val)
+            result_var.set(current_value)
             just_evaluated.set(True)
-            last_was_operator.set(False)
             return
 
         # === SQUARE ROOT ===
         if text == "²√x":
-            result_var.set(str(sqrt(result or current)))
+            if current_value == "":
+                current_value = result_var.get()
+            val = sqrt(current_value)
+            current_value = str(val)
+            result_var.set(current_value)
             just_evaluated.set(True)
-            last_was_operator.set(False)
             return
 
         # === SIGN TOGGLE ===
         if text == "+/-":
-            # If result is showing, toggle that
-            if result:
-                new_val = str(toggle_sign(result))
-                result_var.set(new_val)
-                expression_var.set(new_val)
-                return
-
-            # If typing inside expression, toggle last number
-            if current:
-                # Find last number in expression
-                import re
-                parts = re.split(r'([+\-×÷])', current)
-
-                if parts:
-                    if parts[-1] == "":
-                        return  # nothing to toggle
-
-                    # Toggle last numeric part
-                    parts[-1] = str(toggle_sign(parts[-1]))
-                    new_expr = "".join(parts)
-
-                    expression_var.set(new_expr)
-                    result_var.set(parts[-1])
-                return
+            if current_value == "":
+                current_value = result_var.get()
+            current_value = str(toggle_sign(current_value))
+            result_var.set(current_value)
+            return
 
         # === EQUALS ===
         if text == "=":
-            top = expression_var.get().strip()
+            print("= pressed")
+            print("  pending_operator:", pending_operator)
+            print("  current_value:", repr(current_value))
+            print("  stored_value:", stored_value)
+            print("  last_operator:", last_operator)
+            print("  last_operand:", last_operand)
 
-            # Evaluate only the typed expression
-            expr = top
+            # Case 1: normal evaluation
+            if pending_operator and current_value != "":
+                left = stored_value
+                right = float(current_value)
+                op = pending_operator
 
-            result = calculate_expression(expr)
+                result = calculate_expression(f"{left}{op}{right}")
 
-            if result != "Error":
-                formatted = format_result(result)
+                # Save for repeated equals
+                last_operator = op
+                last_operand = right
 
-                # Show expression and result
-                expression_var.set(expr + " =")
-                result_var.set(formatted)
+                expression_var.set(
+                    f"{format_number(left)} {op} {format_number(right)} =")
+                result_var.set(format_number(result))
 
-                # Add to history
-                history_data.insert(0, f"{expr} = {formatted}")
+                # Save to history
+                history_data.insert(
+                        0,
+                        f"{format_number(left)} {op} {format_number(right)} = "
+                        f"{format_number(result)}"
+                    )
 
+                # Reset state
+                stored_value = result
+                current_value = ""
+                pending_operator = None
                 just_evaluated.set(True)
-            else:
-                result_var.set("Error")
-                just_evaluated.set(False)
+                return
 
-            last_was_operator.set(False)
+            # Case 2: repeated equals
+            if last_operator and stored_value is not None:
+                left = stored_value
+                right = last_operand
+                op = last_operator
 
-            if history_visible.get():
-                show_history_overlay()
+                result = calculate_expression(f"{left}{op}{right}")
+
+                expression_var.set(
+                    f"{format_number(left)} {op} {format_number(right)} =")
+                result_var.set(format_number(result))
+
+                # Save to history
+                history_data.insert(
+                    0,
+                    f"{format_number(left)} {op} {format_number(right)} = "
+                    f"{format_number(result)}"
+                )
+
+                stored_value = result
+                just_evaluated.set(True)
+                return
 
             return
+
     btn = tk.Button(btn_frame, text=text, font=("Segoe UI", 12), command=cmd)
     btn.grid(row=row, column=col, columnspan=colspan,
              sticky="nsew", padx=2, pady=2)
